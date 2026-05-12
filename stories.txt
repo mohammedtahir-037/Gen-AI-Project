@@ -1,0 +1,129 @@
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
+
+# Load FLAN-T5 properly
+tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
+model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+
+# ❌ words we don't want
+banned_words = ["kill", "blood", "weapon", "attack", "war", "nazi"]
+
+# 🔹 Clean repeated sentences
+def clean_story(text):
+    sentences = text.split(".")
+    unique = []
+
+    for s in sentences:
+        s = s.strip()
+        if s and s not in unique:
+            unique.append(s)
+
+    return ". ".join(unique) + "."
+
+# 🔹 Check bad content
+def is_bad(text):
+    text = text.lower()
+    return any(word in text for word in banned_words)
+
+# 🔹 Fallback (always safe)
+def fallback_story(caption):
+    return (
+        f"{caption.capitalize()} is captured in a calm and natural setting. "
+        f"The surroundings create a peaceful and realistic atmosphere. "
+        f"It reflects a simple and meaningful moment."
+    )
+
+# 🔹 MAIN FUNCTION
+def generate_story(caption):
+    caption = caption.strip().lower()
+
+    prompt = f"""
+Write a short and natural story based on this image:
+
+{caption}
+
+Rules:
+- Exactly 3 sentences
+- No repetition
+- No violence
+- No explanations
+- Describe like a real-life moment
+"""
+
+    try:
+        inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(device)
+
+        outputs = model.generate(
+            **inputs,
+            max_length=80,
+            num_beams=4,
+            early_stopping=True
+        )
+
+        story = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        story = clean_story(story)
+
+        # 🚨 safety check
+        if is_bad(story) or len(story.split()) < 10:
+            return fallback_story(caption)
+
+        return story
+
+    except:
+        return fallback_story(caption)Caption: a man standing on the edge of river
+Story: A man standing on the edge of river is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a screenshot of
+Story: A screenshot of is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a screenshot of
+Story: A screenshot of is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a screen shot of the google account
+Story: A screen shot of the google account is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a white and blue flyer with the words automated network, network
+Story: automated network is a white and blue flyer with the words automated network.
+--------------------------------------------------
+Caption: a white and blue flyer with the words automated network, network
+Story: automated network is a white and blue flyer with the words automated network.
+--------------------------------------------------
+Caption: a white and blue flyer with the words automated network, network
+Story: automated network is a white and blue flyer with the words automated network.
+--------------------------------------------------
+Caption: a white and blue flyer with the words automated network, network
+Story: automated network is a white and blue flyer with the words automated network.
+--------------------------------------------------
+Caption: a small dog playing in the grass
+Story: A small dog playing in the grass is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a small dog playing in the grass
+Story: A small dog playing in the grass is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a small dog playing in the grass
+Story: A small dog playing in the grass is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a small dog playing in the grass
+Story: A small dog playing in the grass is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: people are standing around the pool and taking pictures
+Story: People are standing around the pool and taking pictures is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a person reaching to a fish in a pool
+Story: A person reaching to a fish in a pool is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: the horse is brown
+Story: The horse is brown is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: the grass is green
+Story: The grass is green is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: the horse is brown
+Story: The horse is brown is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
+Caption: a little girl on a surf board rides a wave
+Story: A little girl on a surf board rides a wave is shown in a natural setting. The scene looks calm and peaceful. It captures a simple moment.
+--------------------------------------------------
